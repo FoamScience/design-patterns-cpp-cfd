@@ -1,0 +1,284 @@
+\section{Point-to-Point communication}
+
+\begin{frame}[fragile]{Communicators and ranks}
+    There may be many processes talking!
+    \begin{description}
+        \item[MPI Communicators] \hspace{\linewidth} Objects defining which processes can communicate;
+            Processes are refered to by  their {\bf ranks}
+        \begin{itemize}
+            \item \verb|MPI_COMM_FOAM| in the Foundation version and Foam Extend 5
+            \item \verb|MPI_COMM_WORLD| (All processes) elsewhere
+            \item Size: \verb|Pstream::nProcs()|
+        \end{itemize}
+    \item[MPI rank \hspace{1.9cm}] \hspace{\linewidth} Process Identifier (an integer).
+        \begin{itemize}
+            \item \verb|Pstream::myProcNo()| returns the active process's ID.
+        \end{itemize}
+    \end{description}
+\end{frame}
+
+
+\begin{frame}[fragile]{P2P comms}
+
+\begin{itemize}
+    \item MPI defines its own {\bf Data Types}
+    \item OpenFOAM gets around it using {\bf parallel streams}
+        \begin{itemize}
+            \item OpenFOAM hands over a stream-representation of your data to MPI calls
+            \item MPI passes the information in those streams around
+        \end{itemize}
+\end{itemize}
+
+\begin{figure}
+    \begin{center}
+    \begin{tikzpicture}
+    \node[loris1, process] (p0) [label=above:{\scriptsize $P_0$}] {};
+    \node[loris2, process] (p1) at (6,0) [label=above:{\scriptsize $P_1$}] {};
+    \node (c) at ($(p0)+(3,-1)$) {   };
+    \draw[thick,draw=mDarkTeal,Tee Barb-] (p0) |- (c.west) node [near end,above, mDarkTeal] {\tt IPstream};
+    \draw[thick,draw=mLightGreen,-stealth] (c.east) -| (p1) node [near start,above,mLightGreen] {\tt OPstream};
+
+    %\node[node, image] (x_src_i) [right=of y_src_i, label=below:$\phi_j$] { };
+    \node (s1) at (3,-1) [semicircle, fill=mLightGreen, minimum size=1mm, rotate=-135, node distance=0,anchor=south] {};
+    \node (s1) at (3,-1) [semicircle, fill=mDarkTeal, minimum size=1mm, rotate=45,node distance=0,anchor=south] {};
+    \node[draw=mDarkTeal] (b0) at (s1.south) [mDarkTeal,left=.45cm,label=left:{\scriptsize send},rotate=90] {\scriptsize MPI buf};
+    \node[draw=mLightGreen] (b1) at (s1.south) [mLightGreen, right=.45cm,label=right:{\scriptsize recv},rotate=-90] {\scriptsize MPI buf};
+    \end{tikzpicture}
+    \end{center}
+    \caption{Communication between two processes in OpenFOAM}
+    \label{fig:}
+\end{figure}
+
+\end{frame}
+
+\againframe<2>{f1}
+
+\begin{frame}[fragile]{P2P comms: A first example}
+
+    \begin{itemize}
+        \item {\tt Pstream} class provides the interface needed for communication
+        \item Each "send" must be matched with a "recieve"
+    \end{itemize}
+\begin{CodeEnvNoComment}[Slaves talk to master]{cpp}{\tiny}
+if (Pstream::master())
+{
+    // Receive lst on master
+    for
+    (
+        int slave=Pstream::firstSlave();
+        slave<=Pstream::lastSlave();
+        slave++
+    )
+    {
+        labelList lst;
+        ?\colorbox{mLightGreen!20}{IPstream fromSlave}?(Pstream::commsTypes::blocking, slave);
+        fromSlave >> lst; // Then do something with lst
+    }
+} else {
+    // Send lst to master
+    ?\colorbox{mLightGreen!20}{OPstream toMaster}?(Pstream::commsTypes::blocking, Pstream::masterNo());
+    toMaster << localLst;
+}
+\end{CodeEnvNoComment}
+\end{frame}
+
+\begin{frame}[fragile]{P2P Blocking comms}
+
+    {\tt Pstream::commsTypes::blocking} (or just {\tt Pstream::blocking} in Foam Extend) defines properties for the MPI call which is executed by
+    the constructed stream.
+    \begin{itemize}
+        \item Does a "local blocking send", i.e. acts on a local buffer
+        \item No matching receive available yet? Block until the message is copied into the buffer
+        \item Returns when the send buffer is safe to be reused.
+        \item Blocking recieve only returns when the receive buffer has the expected data.
+        \item Use this if you want to be on the safe side.
+        \item But, It may result in deadlocks
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{P2P Blocking comms}
+
+    {\tt Pstream::commsTypes::scheduled} (or just {\tt Pstream::scheduled} in Foam Extend) lets MPI pick the best course of action
+    (in terms of performance and memory). This may also depend on the MPI implementation.
+    \begin{itemize}
+        \item Does a "standard send", Either:
+            \begin{enumerate}
+                \item The message is directly put in the recieve buffer.
+                \item Data is buffered (similar to `blocking`).
+                \item Block until a receive shows up.
+            \end{enumerate}
+        \item Has higher chances of causing deadllocks
+    \end{itemize}
+
+    \begin{description}
+        \item[A Deadlock] happens when a process is waiting for a message that never reaches it.
+    \end{description}
+\end{frame}
+
+
+
+\begin{frame}[fragile]{P2P Blocking comms: Deadlocks}
+
+    \begin{itemize}
+        \item Either a matching send or a recieve is missing (Definitely a deadlock).
+        \item A send-recieve cycle (Incorrect usage or order of send/recieve calls).
+    \end{itemize}
+\begin{figure}
+
+    \begin{center}
+    \begin{tikzpicture}
+    \node[loris1, process] (p0) [label=above:{\scriptsize $P_0$}] {};
+    \node[loris2, process] (p1) at (6,0) [label=above:{\scriptsize $P_1$}] {};
+    \node (c) at ($(p0)+(3,-1)$) {   };
+    \draw[thick,draw=mDarkTeal,stealth-] (p0) |- (c.west) node [near end,above, mDarkTeal] {};%%{\tt IPstream};
+    \draw[thick,draw=mLightGreen,-stealth] (c.east) -| (p1) node [near start,above,mLightGreen] {};%%{\tt OPstream};
+
+    %\node[node, image] (x_src_i) [right=of y_src_i, label=below:$\phi_j$] { };
+    \node (s1) at (3,-1) [semicircle, fill=mLightGreen, minimum size=1mm, rotate=-135, node distance=0,anchor=south] {};
+    \node (s1) at (3,-1) [semicircle, fill=mDarkTeal, minimum size=1mm, rotate=45,node distance=0,anchor=south] {};
+    \node[draw=mDarkTeal] (b0) at (s1.south) [mDarkTeal,left=.45cm,label=left:{\scriptsize recv},rotate=90] {\scriptsize MPI buf1};
+    \node[draw=mDarkTeal] (b00) at (b0.east) [mDarkTeal,left=.5cm,label=left:{\scriptsize send},rotate=90] {\scriptsize MPI buf2};
+    \node[draw=mLightGreen] (b1) at (s1.south) [mLightGreen, right=.45cm,label=right:{\scriptsize send},rotate=-90] {\scriptsize MPI buf1};
+    \node[draw=mLightGreen] (b10) at (b1.west) [mLightGreen, right=.5cm,label=right:{\scriptsize recv},rotate=-90] {\scriptsize MPI buf2};
+    \end{tikzpicture}
+    \end{center}
+    \caption{Deadlock possibility due to a 2-processes send-recieve cycle (Kind of depends on MPI implementation used!).}
+    \label{fig:}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{P2P Non-Blocking comms}
+
+    {\tt Pstream::commsTypes::nonBlocking} (or just {\tt Pstream::nonBlocking} in Foam Extend) 
+    does not wait until buffers are safe to re-use.
+    \begin{itemize}
+        \item Returns immediately.
+        \item The program must wait for the operation to complete ({\tt Pstream::waitRequests}).
+        \item It's a form of piepline parallelism; i.e. Overlaps computation and communication.
+    \end{itemize}
+
+    \begin{itemize}
+        \item Avoids Deadlocks
+        \item Minimizes idle time for MPI processes
+        \item Helps skip unnecessary synchronisation
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{P2P Non-Blocking comms: An example}
+\begin{CodeEnvNoComment}[Communicate with a neighboring processor]{cpp}{\scriptsize}
+// Code for the Foundation version and ESI
+?\colorbox{mLightGreen!20}{PstreamBuffers pBufs}?(Pstream::commsTypes::nonBlocking);
+// Send
+forAll(procPatches, patchi)
+{
+  UOPstream toNeighb(procPatches[patchi].neighbProcNo(), pBufs);
+  toNeighb << patchInfo;
+}
+?\colorbox{mLightGreen!20}{pBufs.finishedSends();}? // <- Calls Pstream::waitRequests
+// Receive
+forAll(procPatches, patchi)
+{
+  UIPstream fromNb(procPatches[patchi].neighbProcNo(), pBufs);
+  Map<T> nbrPatchInfo(fromNb);
+}
+\end{CodeEnvNoComment}
+\end{frame}
+
+\pgfplotsset{width=7cm,compat=newest}
+
+\begin{frame}[fragile]{Overlapping communication and computation}
+\begin{figure}
+    \begin{center}
+        \scriptsize
+        \begin{tikzpicture} [
+            every axis/.style={ % add these settings to all the axis environments in the tikzpicture
+                /pgf/number format/.cd, fixed, precision=3,1000 sep={}, zerofill,
+                every node near coord/.append style={font=\tiny,},
+                ybar stacked,
+                %%x tick label style={rotate=45,anchor=east},
+                symbolic x coords={
+                    64, 32, 16, 8
+                },
+                enlargelimits=0.2,
+                xtick=data,
+                ymax=0.8,
+                ylabel={Total execution time (in secs)},
+                xlabel={Message size in Mb},
+                ytick={0,0.2,0.4,0.6,0.8},
+              bar width=15pt,
+	          nodes near coords,
+              },
+        ]
+\begin{axis}[
+    ybar stacked,
+    hide axis,
+    bar shift=-8pt,
+	bar width=15pt,
+    legend style={at={(0.5,1.25)},
+      anchor=north,legend columns=2},
+    ]
+\addplot[ybar,fill=mDarkTeal,draw=mDarkTeal,text=white] plot coordinates {(64,0.163979) (32,0.0819085) (16,0.0402079) (8,0.0222183)};
+\label{nbct}
+\addplot[ybar,fill=mLightGreen,draw=mLightGreen,text=white] plot coordinates {(64,0.289514) (32,0.144492) (16,0.0739917) (8,0.036825)};
+\label{nbdt}
+\end{axis}
+\begin{axis}[
+    bar shift=8pt,
+    legend style={at={(0.5,1.02)},
+      anchor=south,legend columns=2},
+    ]
+\addplot[ybar,fill=mDarkBrown,draw=mDarkBrown,text=white] plot coordinates {(64,0.167) (32,0.084) (16,.0417193) (8,0.0211096)};
+\label{bct}
+\addplot[ybar,fill=mLightBrown,draw=mLightBrown,text=white] plot coordinates {(64,0.657209) (32,0.26363) (16,0.134693) (8,0.07258)};
+\label{bdt}
+\addlegendentry{Computation time (Blocking)}
+\addlegendentry{Diff. to total time (Blocking)}
+\addlegendimage{/pgfplots/refstyle=bdt,color=mDarkTeal}
+\addlegendentry{Computation time (NonBlocking)}
+\addlegendimage{/pgfplots/refstyle=bdt,color=mLightGreen}
+\addlegendentry{Diff. to total time (NonBlocking)}
+\end{axis}
+\end{tikzpicture}
+    \end{center}
+    \caption{Effect of message size on overlapping communication and computation (4 processors, OpenMPI 4, OpenFOAM 8); \scriptsize Benchmark inspired from \cite{Baruffa2020}}
+\end{figure}
+\end{frame}
+
+
+\begin{frame}[fragile]{MPI send modes used in OpenFOAM code}
+\begin{figure}
+    \begin{center}
+    \begin{tikzpicture}
+        \node[minimum height=1cm, minimum width=2cm,draw=white, text=white,fill=mDarkTeal] (m0) {\scriptsize Standard Send};
+        \node[note] (n0) at (m0.north east)  {\tiny Default in scheduled};
+        \node[lownote] (ln0) at (m0.south west)  {\tiny {\tt MPI\_Send}};
+        \node[draw=white, fill=gray!20] (d0) at ($(m0)+(1cm,-1.2cm)$){\scriptsize
+                Will not return until send buffer is safe to use,
+                May also buffer.};
+        \draw[-stealth, draw=mDarkBrown] (ln0.south) -- (d0.north);
+
+        \pause
+        \node[minimum height=1cm, minimum width=2cm,draw=white, text=white,fill=mDarkTeal] (m1) at ($(m0)+(6cm,0)$) {\scriptsize Buffered Send};
+        \node[note] (n1) at (m1.north east)  {\tiny Default in blocking};
+        \node[lownote] (ln1) at (m1.south west)  {\tiny {\tt MPI\_Bsend}};
+        \node[draw=white, fill=gray!20] (d1) at ($(m1)+(-1cm,-1.8cm)$){\scriptsize
+                Returns immediately and the send buffer can be used};
+        \draw[-stealth, draw=mDarkBrown] (ln1.south) -- (d1.north);
+
+        \pause
+        \node[minimum height=1cm, minimum width=2cm,draw=white, text=white,fill=mDarkTeal] (m5) at ($(m0)+(3cm,2cm)$) {\scriptsize Non-Blocking standard Send};
+        \node[note] (n5) at (m5.north east)  {\tiny Default in nonBlocking};
+        \node[lownote] (ln5) at (m5.south west)  {\tiny {\tt MPI\_Isend}};
+
+        \pause
+        \node[minimum height=1cm, minimum width=2cm,draw=white, text=white,fill=mDarkTeal] (m2) at ($(m0)+(0,-3cm)$) {\scriptsize Synchronous Send};
+        \node[note] (n2) at (m2.north east)  {\tiny not used};
+        \node[lownote] (ln2) at (m2.south west)  {\tiny {\tt MPI\_Ssend}};
+        \node[minimum height=1cm, minimum width=2cm,draw=white, text=white,fill=mDarkTeal] (m3) at ($(m1)+(0,-3cm)$) {\scriptsize Ready Send};
+        \node[note] (n3) at (m3.north east)  {\tiny not used};
+        \node[lownote] (ln3) at (m3.south west)  {\tiny {\tt MPI\_Rsend}};
+
+    \end{tikzpicture}
+    \end{center}
+\end{figure}
+\end{frame}

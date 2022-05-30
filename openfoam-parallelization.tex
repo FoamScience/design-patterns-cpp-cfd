@@ -1,0 +1,154 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme[sectionpage=simple,numbering=fraction]{metropolis}
+\usepackage{appendixnumberbeamer}
+
+\usepackage{booktabs}
+\usepackage[scale=2]{ccicons}
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+
+\usepackage{xspace}
+\newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
+
+\title{\hspace{\linewidth}\\Introduction to parallisation in OpenFOAM}
+\date{June 02, 2022}
+\author{Mohammed Elwardi Fadeli\textsuperscript{1,2}, Holger Marschall\textsuperscript{1} and Christian Hasse\textsuperscript{2}}
+\institute{
+    \textsuperscript{1} Mathematical Modeling and Analysis (MMA)\\
+    \textsuperscript{2} Simulation of Reactive Thermo Fluid Systems (STFS)\\
+        TU Darmstadt
+}
+% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+
+\definecolor{mDarkBrown}{HTML}{604c38}
+\definecolor{mDarkTeal}{HTML}{0F1833}
+\definecolor{mLightBrown}{HTML}{EB811B}
+\definecolor{mLightGreen}{HTML}{14B03D}
+\colorlet{mBg}{black!2}
+
+\usepackage{amsmath, amsfonts}
+\usepackage{multicol}
+\usepackage{tikz-3dplot}
+\usetikzlibrary{arrows.meta, calc, tikzmark, shapes.geometric, positioning, automata}
+\usepackage{setspace}
+\usepackage{stmaryrd}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings}
+\tcbuselibrary{minted}
+\usepackage{pgfplots}
+
+\newenvironment{CodeEnv}[4][]
+{\tcbset{mytcboptions/.style={title=#1}}%
+    \tcblisting{
+    listing only,width=\linewidth,colback=white,colframe=mDarkTeal,
+    arc=0pt,outer arc=0pt,top=1mm,bottom=1mm,left=1mm,right=1mm,
+    listing outside comment,righthand width=2.5cm,comment={#3},
+    boxrule=0.6pt,listing engine=minted,minted language=#2,mytcboptions,minted options={fontsize=#4,escapeinside=??}%
+}
+}{%
+\endtcblisting%
+}
+
+\newenvironment{CodeEnvNoComment}[3][]
+{\tcbset{mytcboptions/.style={title=#1}}%
+    \tcblisting{
+    listing only,width=\linewidth,colback=white,colframe=mDarkTeal,
+    arc=0pt,outer arc=0pt,top=1mm,bottom=1mm,left=1mm,right=1mm,
+    boxrule=0.6pt,listing engine=minted,minted language=#2,mytcboptions,minted options={fontsize=#3,escapeinside=??}%
+}
+}{%
+\endtcblisting%
+}
+
+
+\tikzset{
+  loris1/.style={
+    path picture={
+      \node[anchor=center] at (path picture bounding box.center) {
+        \includegraphics[scale=.5]{images/slow_loris.jpg}};}},
+  loris2/.style={
+    path picture={
+      \node[anchor=center] at (path picture bounding box.center) {
+        \includegraphics[scale=.5]{images/slow_loris_blueish.png}};}},
+  process/.style={
+  rectangle, minimum width=1cm, minimum height=1cm, thick, draw = white, node distance = 26mm},
+  note/.style={
+    fill=mLightGreen, draw=mLightGreen, inner sep=0.1cm, anchor=east, text=white
+  },
+  lownote/.style={
+    fill=mDarkBrown, draw=mDarkBrown, inner sep=0.1cm, anchor=west,text=white
+  }
+}
+\tikzstyle{noteNode} = [fill=my_yellow, draw=my_yellow, inner sep=0.1cm, anchor=east]
+
+\newcommand{\DrawBox}[5]{% lx, ly, dx, dy, dz
+        \def\lx{#1}
+        \def\ly{#2}
+        \def\dx{#3}
+        \def\dy{#4}
+        \def\dxplx{\lx+\dx}
+        \def\offset{.25}
+        \def\dyply{\ly+\dy}
+        \draw[cube,fill=black!2] (\dx,\dy,#5) -- (\dx,\dyply,#5) -- (\dxplx,\dyply,#5) -- (\dxplx,\dy,#5) -- cycle;
+        \draw[cube,fill=black!2] (\dxplx,\dy,#5) -- (\dxplx,\dy,0) -- (\dxplx,\dyply,0) -- (\dxplx,\dyply,#5) -- cycle;
+        \draw[cube,fill=black!2] (\dxplx,\dyply,#5) -- (\dxplx,\dyply,0) -- (\dx,\dyply,0) -- (\dx,\dyply,#5) -- cycle;
+        \pgfmathsetmacro{\xlo}{\dx+\offset}
+        \pgfmathsetmacro{\xfs}{\dx+\offset+\offset}
+        \pgfmathsetmacro{\xhi}{\lx+\dx}
+        \pgfmathsetmacro{\ylo}{\dy+\offset}
+        \pgfmathsetmacro{\yfs}{\dy+\offset+\offset}
+        \pgfmathsetmacro{\yhi}{\ly+\dy}
+        \foreach \x in {\xlo,\xfs,...,\xhi}
+        	\foreach \y in {\ylo,\yfs,...,\yhi}
+        	{
+        		\draw[grid] (\x,\dy,#5) -- (\x,\yhi,#5);
+        		\draw[grid] (\dx,\y,#5) -- (\xhi,\y,#5);
+        	}
+
+        \foreach \x in {\xlo,\xfs,...,\xhi}
+        	\foreach \z in {0.25,0.5,...,1.75}
+        	{
+        		\draw[grid] (\x,\yhi,0) -- (\x,\yhi,2);
+        		\draw[grid] (\dx,\yhi,\z) -- (\xhi,\yhi,\z);
+        	}
+
+        \foreach \y in {\ylo,\yfs,...,\yhi}
+        	\foreach \z in {0.25,0.5,...,1.75}
+        	{
+        		\draw[grid] (\xhi,\y,0) -- (\xhi,\y,2);
+        		\draw[grid] (\xhi,\dy,\z) -- (\xhi,\yhi,\z);
+        	}
+
+}
+
+\titlegraphic{\begin{flushright}\includegraphics[width=.45\textwidth]{images/nhr-tu-logo.png}\end{flushright}}
+\setbeamerfont{page number in head/foot}{size=\tiny}
+\setbeamercolor{footline}{fg=gray}
+\setbeamertemplate{frame footer}{Supported by NH4CES}
+
+\usepackage[doi=true,style=numeric]{biblatex}
+  \nocite{*}
+  \setbeamertemplate{bibliography item}[text]
+  \addbibresource{openfoam-parallelisation.bib}
+
+\setlength{\abovecaptionskip}{2pt}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Table of contents}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \tableofcontents[hideallsubsections]
+\end{frame}
+
+\input{slides/intro.tex}
+\input{slides/p2p.tex}
+\input{slides/collectives.tex}
+\input{slides/custom.tex}
+\input{slides/apps.tex}
+\input{slides/conc.tex}
+
+\end{document}
