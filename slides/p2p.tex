@@ -35,8 +35,8 @@
     \node[loris1, process] (p0) [label=above:{\scriptsize $P_0$}] {};
     \node[loris2, process] (p1) at (6,0) [label=above:{\scriptsize $P_1$}] {};
     \node (c) at ($(p0)+(3,-1)$) {   };
-    \draw[thick,draw=mDarkTeal,Tee Barb-] (p0) |- (c.west) node [near end,above, mDarkTeal] {\tt IPstream};
-    \draw[thick,draw=mLightGreen,-stealth] (c.east) -| (p1) node [near start,above,mLightGreen] {\tt OPstream};
+    \draw[thick,draw=mDarkTeal,Tee Barb-] (p0) |- (c.west) node [near end,above, mDarkTeal] {\tt OPstream};
+    \draw[thick,draw=mLightGreen,-stealth] (c.east) -| (p1) node [near start,above,mLightGreen] {\tt IPstream};
 
     %\node[node, image] (x_src_i) [right=of y_src_i, label=below:$\phi_j$] { };
     \node (s1) at (3,-1) [semicircle, fill=mLightGreen, minimum size=1mm, rotate=-135, node distance=0,anchor=south] {};
