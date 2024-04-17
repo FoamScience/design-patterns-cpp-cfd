@@ -1,0 +1,194 @@
+\begin{frame}[fragile]{Design patterns for common mechanisms - RTS}
+
+\begin{description}
+    \item[Scenario 1\hspace{2cm}] \hspace{\linewidth}
+        You want users to select a model for a \underline{particular concern} {\bf at runtime}.\\
+        These models are implemented as children of a base (template) class.\\
+        You also want them to add new models without altering your code.\\
+    \item[Scenario 2\hspace{2cm}] \hspace{\linewidth}
+        You have a legacy code base, that you want to unit-test.\\
+        But writing a binary for each test is cumbersome.\\
+        So the unit tests should be selectable {\bf at runtime} too.\\
+    \item<2>[Solution\hspace{2cm}] \hspace{\linewidth}
+        A runtime type selection table (RTS) that maps names to objects.\\
+        Think of it as a manual {\tt vtable}.\\
+        Relying mainly on {\bf Global (or static) variables} and a bit of metaprogramming.\\
+\end{description}
+
+\end{frame}
+
+\begin{frame}[fragile]{Design patterns for common mechanisms - RTS}
+
+Here is a little experiment with OpenFOAM's RTS:
+
+\begin{CodeEnvNoComment}[Exploring memory layouts with GDB]{shell}{\scriptsize}
+git clone https://github.com/FoamScience/foamUT
+cd foamUT
+source /usr/lib/openfoam/openfoam2112/etc/bashrc # Or any version
+# Compile with debug symbols
+sed -i 's/14/14 -g -ggdb -O0/g' tests/exampleTests/Make/options
+./Alltest --no-parallel
+gdb ./tests/exampleTests/testDriver
+    (gdb) b main
+    (gdb) r --- -case cases/cavity
+    (gdb) ptype 'Foam::Function1<double>'
+    # In particular, we are interested in:
+    (gdb) ptype 'Foam::Function1<double>::dictionaryConstructorTableType'
+    (gdb) ptype 'Foam::Function1<double>::dictionaryConstructorPtr'
+    # See what's available through:
+    (gdb) ptype 'Foam::Function1Types::CSV<double>::'
+    # Here is the metaprogramming part:
+    (gdb) ptype 'Foam::Function1<double>::adddictionaryConstructorToTable<*>::'
+\end{CodeEnvNoComment}
+\end{frame}
+
+\begin{frame}[allowframebreaks,fragile]{Design patterns for common mechanisms - RTS}
+
+Discoveries:
+
+\begin{itemize}
+    \item {\bf Base class} keeps a {\bf static pointer} for a {\tt HashTable}
+        of {\bf function pointers} to ctors of 'derived' classes.
+        \begin{enumerate}
+            \item {\bf static} so it gets initialized before main, after dynamic library loading.
+            \item {\bf pointer} because order of initialization of global variables is {\bf not guaranteed}.
+            \item Technically; ctors don't have addresses, so cannot have function pointers to them.\\
+                Instead we store pointers to little helper construction functions.
+        \end{enumerate}
+    \item {\bf The memory} pointed to by the table pointer is managed manually
+        \begin{enumerate}
+            \item {\tt \*ConstructorTablePtr\_construct(bool)} called by the base class ctor.
+            \item Flexible enough to have multiple ways to construct objects (from dictionary, from Istream, etc)
+        \end{enumerate}
+    \pagebreak
+    \item Instatiation of {\tt Base::add\*ConstructorToTable<Derived>} will cause Derived's ctor to be added to the table.
+        \begin{enumerate}
+            \item Which is an effect of how template subclasses work.
+            \item and with some macros, the boilerplate code is burried.
+        \end{enumerate}
+    \item The factory pattern comes into play:\\
+        \mintinline{cpp}{autoPtr<Base> obj = Base::New(ctor_args);}\\
+        which will forward the args to the selected ctor depending on a type name from user configs\\
+        No need to \mintinline{cpp}{#include "Derived.H"} and if Derived implements some
+        pure virtual functions from Base, they will be called instead.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Design patterns for common mechanisms - objectRegistry}
+
+\begin{description}
+    \item[Scenario 1\hspace{2cm}] \hspace{\linewidth}
+        You have a nice RTS for viscosity models; implementing all kinds of fluids.\\
+        Base ctor now takes 10 args so you cover evey desirable field to calculate $\nu$\\
+        Next guy comes by and wants to use custom fields... and now your interface needs to change!\\
+    \item[Scenario 2\hspace{2cm}] \hspace{\linewidth}
+        Your ModelA depends on a ModelB from another library, but ModelB also depends on ModelA.\\
+        Flat-out bad design, but it's too late to refactor.\\
+    \item<2>[Solution\hspace{2cm}] \hspace{\linewidth}
+        Promise to write class ctors with {\bf nothing more than (a config + a mesh)} as arguments.\\ 
+        Have an Object Registry with 1 rule: Only takes global object in.\\
+\end{description}
+
+\end{frame}
+
+\begin{frame}[allowframebreaks,fragile]{Design patterns for common mechanisms - objectRegistry}
+
+Say you want a function object (a UDF) to send fields to a Database for some ML/AI processing:
+
+\begin{CodeEnvNoComment}[]{cpp}{\scriptsize}
+// In system/controlDict
+functions
+{
+    SendPUandPhi
+    {
+        type fieldsToSmartRedis; // gets loaded because of the RTS
+        libs ("libsmartredisFunctionObjects.so");
+        fields (p U phi); // <- dont care about their types! just send these fields out plz
+        patches (internal);
+    }
+}
+\end{CodeEnvNoComment}
+
+How do you think the code will look like?
+
+\pagebreak
+
+Right, should be simple enough
+
+\begin{CodeEnvNoComment}[Trivial implementation; works for like 2 secs]{cpp}{\scriptsize}
+// Nice start, maybe a pure function (hopefully no side effects)
+void Foam::smartRedisClient::sendGeometricFields
+(
+    const volScalarField& p,
+    const volVectorField& U,
+    const surfaceScalarField& phi
+) const; // blah blah
+\end{CodeEnvNoComment}
+
+But, what happens when someone wants to send temperature?
+
+\pagebreak
+
+Exploit: Fields are registered to the mesh they were created on:
+
+\begin{CodeEnvNoComment}[API improvements]{cpp}{\scriptsize}
+void Foam::smartRedisClient::sendGeometricFields
+(
+    const fvMesh& mesh // less dependencies -> stable API
+    // You selfish ppl, this means less compilation time for YOU!
+) const
+{
+    const auto& p = mesh.lookupObject<volScalarField>("p");
+    const auto& U = mesh.lookupObject<volVectorField>("U");
+    const auto& phi = mesh.lookupObject<surfaceScalarField>("phi");
+    // the same blah blah from before
+}
+\end{CodeEnvNoComment}
+
+Much better, ensured a stable interface, but still needs changes to account for new fields
+
+\pagebreak
+
+Generic programming to the rescue!
+
+\begin{CodeEnvNoComment}[Externally configurable  so more easily testable]{cpp}{\scriptsize}
+void Foam::smartRedisClient::sendGeometricFields
+(
+    const dictionary dict, // now configurable
+    const fvMesh& mesh
+) const
+{
+    wordList fields = dict.lookup("fields"); // get fields list from config
+    checkFieldsExist<SupportedTypes>(fields, mesh);
+    sendFields<SupportedTypes>(fields, mesh);
+}
+\end{CodeEnvNoComment}
+
+Delegation to templated methods is good, gives control over supported types through type lists.
+C++ is, in the end, a typed language.
+
+\pagebreak
+
+\begin{CodeEnvNoComment}[]{cpp}{\scriptsize}
+template<class... Types> bool Foam::smartRedisClient::checkFieldsExist (
+    const wordList& fieldNames, const objectRegistry& obr
+) const {
+    // static_assert at least one template argument
+    forAll(fieldNames, fi) {
+        // Fold expressions to check if a matching name of any of the types is found
+        if (!(obr.foundObject<Types>(fieldNames[fi]) || ...)) {
+            // Be transparent with the poor user seeing this for the first time
+            word supportedTypes = word("(") + nl;
+            ((supportedTypes += tab + Types::typeName + nl), ...);
+            supportedTypes += ")";
+            FatalErrorInFunction
+                << "Field " << fieldNames[fi] << " not found in objectRegistry"
+                << " as any of the supported types:" << nl
+                << supportedTypes
+                << exit(FatalError); }
+    }
+    return true;
+}
+\end{CodeEnvNoComment}
+
+\end{frame}

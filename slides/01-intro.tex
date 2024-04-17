@@ -1,0 +1,91 @@
+\begin{frame}[fragile]{30mins Journey through C++ Programming Paradigms}
+
+    \begin{itemize}
+        \item Programming paradigms for CFD/C++ developers
+        \item Principles for better software design
+        \item Most common design pattern in Open Source C++ CFD software
+        \item Applications: Design patterns for common mechanisms
+        \item Closing remarks
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}[allowframebreaks,fragile]{Programming pardigms}
+
+    It's all about how  to manage {\bf the program's state}
+
+\begin{description}
+    \item[Procedural Programming\hspace{2cm}] \hspace{\linewidth} 
+        State mutated externally to code.
+\begin{CodeEnvNoComment}[Mutate a variable]{cpp}{\scriptsize}
+// Symptoms: pass-by-reference, void return type of free functions
+void inc(int &x) { x++; }
+int x = 0;
+inc(x);
+\end{CodeEnvNoComment}
+        "Give a man a state, and he will have a bug one day. Teach him to mutate state everywhere, and he will have bugs for a lifetime"
+        --- Mutated Joshoa Bloch's saying
+    \item[Object-Oriented Programming\hspace{2cm}] \hspace{\linewidth} 
+        State and code logic are coupled.
+\begin{CodeEnvNoComment}[Object classes]{cpp}{\scriptsize}
+// Symptoms: class data members, member methods
+class Counter {
+    int x = 0;
+public:
+    void inc() { x++;}
+};
+Counter i;
+i.inc();
+\end{CodeEnvNoComment}
+    Check \href{https://www.youtube.com/watch?v=F4fxlM5gmtU}{Tomislav's \bf Object-oriented crash course for OpenFOAM devs}
+    \item[Functional Programming\hspace{2cm}] \hspace{\linewidth} 
+        State, huh? There shall be no state,
+        \\only immutable variables and zero-side-effects functions
+\begin{CodeEnvNoComment}[No-capture pass-by-value lambdas]{cpp}{\scriptsize}
+// Symptoms: pure functions, immutability everywhere
+// math-correctness; i.e. cannot write x=x+1
+auto inc = [](int x) { return x + 1; };
+const int x = 0;
+const int xPlusOne = inc(x);
+\end{CodeEnvNoComment}
+        No scientific computing in Haskell, or F\# - non-existent user base.
+    \item[Declarative Programming\hspace{2cm}] \hspace{\linewidth} 
+        State management is abstracted away. Facts/Rules/Queries as seen in logic
+        programming and Database Systems (SQL ... etc)
+\begin{CodeEnvNoComment}[C++ ranges but it's c++23]{cpp}{\scriptsize}
+// Symptoms: Queries, rules and facts
+// Transform is a view rule, lazy evaluated! but do we care?
+// as long as it does what it's supposed to
+auto inc = [](int x) { return x + 1; };
+vector<int> v = {1, 2, 3};
+auto result = v | ranges::views::transform(inc);
+\end{CodeEnvNoComment}
+        Popular in Database Systems and web stuff; not so much in scientific computing.
+    \item[Parallel Programming\hspace{2cm}] \hspace{\linewidth} 
+        State can be shared, and must be carefully managed.\\
+        Fear of race conditions and deadlocks gives rise to locks, mutexes, and atomic operations.\\
+\begin{CodeEnvNoComment}[Execution policies since c++17]{cpp}{\scriptsize}
+// Symptoms: multithreading, MPI, GPU offloading
+auto inc = [](int x) { return x + 1; };
+vector<int> v = {1, 2, 3, 4};
+std::transform(std::execution::par, v.begin(), v.end(), v.begin(), inc);
+\end{CodeEnvNoComment}
+        Check my \href{https://openfoam-parallelisation-course.github.io/}{Workshop: \bf Parallel programming in OpenFOAM}
+    \item[Generic Programming\hspace{2cm}] \hspace{\linewidth} 
+        State is abstracted away, and code logic is type-agnostic.
+\begin{CodeEnvNoComment}[Concepts and templates]{cpp}{\scriptsize}
+// Symptoms: meta-programming, templating and compile-time programming
+template<typename T>
+concept Incrementable = std::is_move_constructible<T>::value
+    && requires(T x) { { x + 1 } -> std::convertible_to<T>; };
+template<Incrementable T> T inc(T x) { return x + 1; }
+int x = 0;
+if constexpr (Incrementable<decltype(x)>) {
+    x = inc(x);
+} else {
+    // Something else
+}
+\end{CodeEnvNoComment}
+\end{description}
+
+\end{frame}

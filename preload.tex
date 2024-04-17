@@ -1,5 +1,3 @@
-\documentclass[10pt,aspectratio=169]{beamer}
-
 \usetheme[sectionpage=simple,numbering=fraction]{metropolis}
 \usepackage{appendixnumberbeamer}
 
@@ -12,32 +10,41 @@
 \usepackage{xspace}
 \newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
 
-\title{\hspace{\linewidth}\\Introduction to parallisation in OpenFOAM}
-\date{June 02, 2022}
+\title{\hspace{\linewidth}\\Design Patterns and \\Programming Paradigms in Open Source CFD Software}
+\subtitle{}
+\date{April, 2024}
 \author{Mohammed Elwardi Fadeli\textsuperscript{1,2}, Holger Marschall\textsuperscript{1} and Christian Hasse\textsuperscript{2}}
 \institute{
     \textsuperscript{1} Mathematical Modeling and Analysis (MMA)\\
     \textsuperscript{2} Simulation of Reactive Thermo Fluid Systems (STFS)\\
-        TU Darmstadt
+    \hphantom{\textsuperscript{1}}  Energy Conversion Group, NHR4CES - TU Darmstadt
 }
-% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+% \titlegraphi11c{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
 
-\definecolor{mDarkBrown}{HTML}{604c38}
-\definecolor{mDarkTeal}{HTML}{0F1833}
-\definecolor{mLightBrown}{HTML}{EB811B}
+\definecolor{mDarkTeal}{HTML}{23373b}
+\definecolor{mDarkBrown}{HTML}{495057}
+%%\definecolor{mDarkTeal}{HTML}{0F1833}
+\definecolor{mLightBrown}{HTML}{90B1D0}
 \definecolor{mLightGreen}{HTML}{14B03D}
 \colorlet{mBg}{black!2}
 
 \usepackage{amsmath, amsfonts}
 \usepackage{multicol}
 \usepackage{tikz-3dplot}
-\usetikzlibrary{arrows.meta, calc, tikzmark, shapes.geometric, positioning, automata}
+\usepackage[simplified]{pgf-umlcd}
+\usetikzlibrary{arrows.meta, calc, tikzmark, shapes.geometric, positioning, automata, patterns}
 \usepackage{setspace}
 \usepackage{stmaryrd}
 \usepackage[most]{tcolorbox}
+\usepackage[outputdir=build]{minted}
 \tcbuselibrary{listings}
 \tcbuselibrary{minted}
 \usepackage{pgfplots}
+\usepackage{emoji}
+\usepackage{pgf-pie}
+
+\renewcommand{\theFancyVerbLine}{\ttfamily {\color{orange} \oldstylenums{\arabic{FancyVerbLine}}}}
+\newcommand<>\hlbox[2]{\only#3{\colorbox{#1}{#2}}}
 
 \newenvironment{CodeEnv}[4][]
 {\tcbset{mytcboptions/.style={title=#1}}%
@@ -45,7 +52,7 @@
     listing only,width=\linewidth,colback=white,colframe=mDarkTeal,
     arc=0pt,outer arc=0pt,top=1mm,bottom=1mm,left=1mm,right=1mm,
     listing outside comment,righthand width=2.5cm,comment={#3},
-    boxrule=0.6pt,listing engine=minted,minted language=#2,mytcboptions,minted options={fontsize=#4,escapeinside=??}%
+    boxrule=0.6pt,listing engine=minted,minted language=#2,mytcboptions,minted options={fontsize=#4,escapeinside=??,linenos}%
 }
 }{%
 \endtcblisting%
@@ -56,7 +63,7 @@
     \tcblisting{
     listing only,width=\linewidth,colback=white,colframe=mDarkTeal,
     arc=0pt,outer arc=0pt,top=1mm,bottom=1mm,left=1mm,right=1mm,
-    boxrule=0.6pt,listing engine=minted,minted language=#2,mytcboptions,minted options={fontsize=#3,escapeinside=??}%
+    boxrule=0.6pt,listing engine=minted,minted language=#2,mytcboptions,minted options={fontsize=#3,escapeinside=??,linenos}%
 }
 }{%
 \endtcblisting%
@@ -64,16 +71,16 @@
 
 
 \tikzset{
-  loris1/.style={
-    path picture={
-      \node[anchor=center] at (path picture bounding box.center) {
-        \includegraphics[scale=.5]{images/slow_loris.jpg}};}},
-  loris2/.style={
-    path picture={
-      \node[anchor=center] at (path picture bounding box.center) {
-        \includegraphics[scale=.5]{images/slow_loris_blueish.png}};}},
+  %loris1/.style={
+  %  path picture={
+  %    \node[anchor=center] at (path picture bounding box.center) {
+  %      \includegraphics[scale=.5]{images/Slow_loris.png}};}},
+  %loris2/.style={
+  %  path picture={
+  %    \node[anchor=center] at (path picture bounding box.center) {
+  %      \includegraphics[scale=.5]{images/slow_loris_blueish.png}};}},
   process/.style={
-  rectangle, minimum width=1cm, minimum height=1cm, thick, draw = white, node distance = 26mm},
+  rectangle, minimum width=1cm, minimum height=1cm, thick, node distance = 26mm},
   note/.style={
     fill=mLightGreen, draw=mLightGreen, inner sep=0.1cm, anchor=east, text=white
   },
@@ -126,29 +133,25 @@
 \titlegraphic{\begin{flushright}\includegraphics[width=.45\textwidth]{images/nhr-tu-logo.png}\end{flushright}}
 \setbeamerfont{page number in head/foot}{size=\tiny}
 \setbeamercolor{footline}{fg=gray}
-\setbeamertemplate{frame footer}{Supported by NH4CES}
+\setbeamertemplate{frame footer}{Provided by NHR4CES, SDL Energy Conversion Group}
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=mDarkTeal,     % color of internal links
+    citecolor=mDarkTeal,    % color of links to bibliography
+    filecolor=mDarkTeal,  % color of file links
+    urlcolor=mDarkTeal       % color of external links
+}
+%%% bold links
+\let\oldhref\href
+\renewcommand{\href}[2]{\underline{\textbf{\oldhref{#1}{#2}}}}
 
 \usepackage[doi=true,style=numeric]{biblatex}
   \nocite{*}
   \setbeamertemplate{bibliography item}[text]
-  \addbibresource{openfoam-parallelisation.bib}
+  \addbibresource{designs.bib}
+
+\newcommand{\highlight}[1]{\colorbox{mLightGreen!50}{$\displaystyle #1$}}
 
 \setlength{\abovecaptionskip}{2pt}
-
-\begin{document}
-
-\maketitle
-
-\begin{frame}{Table of contents}
-  \setbeamertemplate{section in toc}[sections numbered]
-  \tableofcontents[hideallsubsections]
-\end{frame}
-
-\input{slides/intro.tex}
-\input{slides/p2p.tex}
-\input{slides/collectives.tex}
-\input{slides/custom.tex}
-\input{slides/apps.tex}
-\input{slides/conc.tex}
-
-\end{document}

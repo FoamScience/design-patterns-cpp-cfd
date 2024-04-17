@@ -1,0 +1,61 @@
+\begin{frame}[allowframebreaks,fragile]{Principles for better software design}
+
+\begin{itemize}
+    \item \textbf{Program for interfaces}
+    \begin{itemize}
+        \item Inheritence (Composition?) and Polymorphism in OOD are your best friends.
+        \item Relating to the Facade and Strategy patterns.
+        \item Example of API design: Three Levels of API calls in
+            \href{https://github.com/OFDataCommittee/openfoam-smartsim/blob/main/docs.md}{OpenFOAM-SmartSim}
+            \\(Service, Developer, and Generic interfaces)
+        \item Benefits: Modularity, Flexibility, Dependency Injection, and Testability.
+        \item Enhanced with generic programming (specifically concepts).
+    \end{itemize}
+    \pagebreak
+    \item \textbf{Seperation for concerns}
+    \begin{itemize}
+        \item OpenFOAM is built mostly as a set of dynamic libraries linked to a binary.
+        \item You can write code for your concerns (new BC? new model?) and load it at runtime.
+        \item Relating to the Factory, Strategy and Registry patterns.
+        \item Example of implementing Load-balanced adaptive mesh refinement by hooking to the
+            dynamic mesh library and extending its classes:
+            \href{https://github.com/STFS-TUDa/blastAMR}{blastAMR}
+        \item Benefits: Modularity, Parallel Development and easier Maintability.
+    \end{itemize}
+    \pagebreak
+    \item \textbf{Composition Over Inheritance}
+    \begin{itemize}
+        \item OpenFOAM deviates from this principle significantly.
+        \item The overhead of dynamic dispatch and indirection introduced by composition make it so
+        the benefits from composition are not worth it! Inheritence plays better with polymorphism
+        \item Relating to the Strategy, Decorator, and dependency injection patterns.
+        \item Example 1:
+            \href{https://github.com/su2code/SU2/blob/master/SU2_CFD/include/fluid/CFluidModel.hpp}{SU2's fluid model class}
+            has viscosity, diffusivity, and thermal conductivity as data members instead of inheriting from them.
+        \item Example 2:
+            \href{https://develop.openfoam.com/Development/openfoam/-/blob/OpenFOAM-v2312/src/OpenFOAM/matrices/schemes/schemesLookup.H}{schemesLookup class from OpenFOAM}
+            is composed of different scheme kinds (interpolation, div, grad, ..., etc)
+            instead of inheriting from their base classes.
+        \item Benefits: Reduced coupling, no fragile base classes. Also, easier on the unit tests.
+    \end{itemize}
+    \pagebreak
+    \item \textbf{Principle of Least Astonishment}
+    \begin{itemize}
+        \item Aim for interfaces to be intuitive and surprise-free.
+        \item Examples:
+\begin{CodeEnvNoComment}[Transport equations]{cpp}{\scriptsize}
+// How hard it is to figure out the terms?
+fvm::ddt(T) + fvm::div(phi, T) == fvm::laplacian(DT, T);
+\end{CodeEnvNoComment}
+\begin{CodeEnvNoComment}[Ways to find a Max]{cpp}{\scriptsize}
+int a, b; Foam::volScalarField c;
+Foam::max(a, b);
+c.max(); max(c); Foam::gMax(c);
+Foam::volScalarField d = c.max(1.0);
+\end{CodeEnvNoComment}
+        \item Benefits: Less of a learning curve and less missunderstanding bugs.
+    \end{itemize}
+\end{itemize}
+
+
+\end{frame}
