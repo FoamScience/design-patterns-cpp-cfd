@@ -47,7 +47,7 @@
 \renewcommand{\umldrawcolor}{white}
 \node<2-5,10,15> (factory) [smallbox] at (builder.north) [yshift=-1.5cm] {Factory Method};
 \node<2-5,10,15> (factory-desc) at (factory.north west) {\emoji{factory}};
-\node<2> (factory-pic) at (factory.center -| creational.east) [picst] {Create concreate objects through a base class};
+\node<2> (factory-pic) at (factory.center -| creational.east) [picst] {Create concrete objects through a base class};
 \node<2> (factory-pic2) at (factory-pic.east) [picst2] 
 {
     \begin{tikzpicture}[scale=0.5,node distance=0.5cm, overlay]
@@ -55,7 +55,7 @@
     \begin{abstractclass}[text width=5cm]{nuModel}{5,2}
         \attribute{\# ptrTable : HashTable<nuModel::ctor\*, word>}
         \operation{+ {\bf New()} : autoPtr<nuModel>}
-        \operation[0]{+ correct() : void}
+        \operation[0]{+ correct() = 0 : void}
     \end{abstractclass}
     \begin{class}[text width=4cm]{concreteNuModel}{5,-3}
         \operation{+ correct() : void}
@@ -120,6 +120,10 @@
 };
 }
 
+\renewcommand{\umltextcolor}{white}
+\renewcommand{\umlfillcolor}{mLightGreen}
+\renewcommand{\umldrawcolor}{white}
+
 % structural
 \uncover<5-10,15> {
 \node (structural) [bigbox,fill=mLightGreen] at (4,0) {\bf Structural};
@@ -135,11 +139,11 @@
         \operation{+ mesh(): const fvMesh\&}
         \operation{+ interpolate(fvMeshsubset\&, Field\&): tmp<Field>}
     \end{class}
-    \draw[dotted] (2.5, -4) -- (fvMeshSubsetProxy.north);
+    \draw[dotted,mLightGreen] (2.5, -4) -- (fvMeshSubsetProxy.north);
     \umlnote ( note ) at (2.5, -4)
     { Delegate to interpolation on \\ whole meshes, or subsets of meshes (cell sets and zones)};
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLightGreen}
+    \renewcommand{\umldrawcolor}{mLightGreen}
     \end{tikzpicture}%
 };
 \node<7-10,15> (adapter) [smallbox] at (proxy.north) [yshift=-1.5cm] {Adapter};
@@ -159,12 +163,12 @@
         \operation{+ pack() : void}
         \operation{+ unpack() : void}
     \end{class}
-    \draw[dotted] (2.5, 0.5) -- (CPLSocketFOAM.south);
-    \draw[dotted] (2.5, 0.5) -- (CPLSocketLAMMPS.north);
+    \draw[dotted,mLightGreen] (2.5, 0.5) -- (CPLSocketFOAM.south);
+    \draw[dotted,mLightGreen] (2.5, 0.5) -- (CPLSocketLAMMPS.north);
     \umlnote ( note ) at (2.5, 0.5)
     { CPL bindings for C++ (originally written in Fortran)};
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLightGreen}
+    \renewcommand{\umldrawcolor}{mLightGreen}
     \end{tikzpicture}%
 };
 \node<8-10,15> (facade) [smallbox] at (adapter.north) [yshift=-1.5cm] {Facade};
@@ -182,8 +186,8 @@
         \operation{+ packFields<T>  (DataSet\&, const wordList\&) : void}
         \operation{+ sendList<Type> (List<Type>\&, const word\&) : void}
     \end{class}
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLihghtGreen}
+    \renewcommand{\umldrawcolor}{mLightGreen}
     \end{tikzpicture}%
 };
 \node<9-10,15> (composite) [smallbox] at (facade.north) [yshift=-1.5cm] {Composite};
@@ -206,14 +210,18 @@
     \begin{class}[text width=2cm]{face}{-1,5}
         \operation{+ faceArea() : scalar}
     \end{class}
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLightGreen}
+    \renewcommand{\umldrawcolor}{mLightGreen}
     \composition{polyMesh}{\tiny points}{1}{pointIOField}
     \composition{polyMesh}{\tiny faces}{1}{faceIOList}
     \composition{faceIOList}{}{1..*}{face}
     \end{tikzpicture}%
 };
 }
+
+\renewcommand{\umltextcolor}{mDarkTeal}
+\renewcommand{\umlfillcolor}{mLightBrown}
+\renewcommand{\umldrawcolor}{white}
 
 \uncover<10-> {
 \node (behavioral) [bigbox,fill=mLightBrown] at (8,0) {\bf Behavioral};
@@ -237,12 +245,12 @@
         \operation{+ prev() : iterator\&}
         \operation{+ good() : bool}
     \end{class}
-    \draw[dotted] (-7,-2.5) -- (LinkedList<T>.north);
-    \draw[dotted] (-7,-2.5) -- (UList<T>.north);
+    \draw[dotted,mLightBrown] (-7,-2.5) -- (LinkedList<T>.north);
+    \draw[dotted,mLightBrown] (-7,-2.5) -- (UList<T>.north);
     \umlnote ( note ) at (-7, -2.5)
         {\mintinline{cpp}{for(auto& e: list) {}}};
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLightBrown}
+    \renewcommand{\umldrawcolor}{mLightBrown}
     \unidirectionalAssociation{LinkedList<T>}{}{\tiny subclass}{iterator}
     \end{tikzpicture}%
 };
@@ -258,19 +266,19 @@
         \operation[0]{+ fvcDiv() : tmp<Field<T> >}
     \end{class}
     \begin{class}[text width=4cm]{gaussDivScheme<T>}{2,-1}
-        \operation{+ fvcDiv(Field\&) : tmp<Field<T>>}
-        \renewcommand{\umltextcolor}{mDarkTeal}
-        \renewcommand{\umldrawcolor}{mDarkTeal}
+        \operation{+ fvcDiv(Field\&) : tmp<Field<T> >}
+        \renewcommand{\umltextcolor}{mLightBrown}
+        \renewcommand{\umldrawcolor}{mLightBrown}
         \inherit{divScheme<T>}
     \end{class}
     \begin{class}[text width=4cm]{gaussDivScheme<T>}{2,-1}
-        \operation{+ fvcDiv(Field\&) : tmp<Field<T>>}
+        \operation{+ fvcDiv(Field\&) : tmp<Field<T> >}
     \end{class}
-    \draw[dotted] (-7,-2) -- (gaussDivScheme<T>.north);
+    \draw[dotted,mLightBrown] (-7,-2) -- (gaussDivScheme<T>.north);
     \umlnote ( note ) at (-7, -2)
         {does \mintinline{cpp}{surfaceIntegrate(}\\\mintinline{cpp}{interpScheme.dotInterpolate}\\\mintinline{cpp}{(mesh.Sf(), vf))}\\ interpolation to face centers alters how divSchemes behave};
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLightBrown}
+    \renewcommand{\umldrawcolor}{mLightBrown}
     \end{tikzpicture}%
 };
 \node<13-15> (observer) [smallbox] at (strategy.north) [yshift=-1.5cm] {Observer};
@@ -285,15 +293,15 @@
         \operation{+ {\bf updateMesh}\\(registry\&, mapPolyMesh\&) : void}
     \end{class}
     \begin{class}[text width=3cm]{pointMesh}{2,7}
-        \renewcommand{\umltextcolor}{mDarkTeal}
-        \renewcommand{\umldrawcolor}{mDarkTeal}
+        \renewcommand{\umltextcolor}{mLightBrown}
+        \renewcommand{\umldrawcolor}{mLightBrown}
         \inherit{MeshObject}
     \end{class}
     \begin{class}[text width=3cm]{pointMesh}{2,7}
     \end{class}
     \begin{class}[text width=3cm]{faMesh}{2,-1.5}
-        \renewcommand{\umltextcolor}{mDarkTeal}
-        \renewcommand{\umldrawcolor}{mDarkTeal}
+        \renewcommand{\umltextcolor}{mLightBrown}
+        \renewcommand{\umldrawcolor}{mLightBrown}
         \inherit{MeshObject}
     \end{class}
     \begin{class}[text width=3cm]{pointMesh}{2,7}
@@ -303,19 +311,19 @@
     \begin{class}[text width=3cm]{objectRegistry}{-5,5}
     \end{class}
     \begin{class}[text width=3cm]{dynamicFvMesh}{-8,7.5}
-        \operation[0]{+ update() : void}
-        \renewcommand{\umltextcolor}{mDarkTeal}
-        \renewcommand{\umldrawcolor}{mDarkTeal}
+        \operation[0]{+ update() = 0 : void}
+        \renewcommand{\umltextcolor}{mLightBrown}
+        \renewcommand{\umldrawcolor}{mLightBrown}
         \inherit{objectRegistry}
     \end{class}
     \begin{class}[text width=3cm]{dynamicFvMesh}{-8,7.5}
         \operation[0]{+ update() : void}
     \end{class}
-    \draw[dotted] (-7,-1) -- (MeshObject.north);
+    \draw[dotted,mLightBrown] (-7,-1) -- (MeshObject.north);
     \umlnote ( note ) at (-7, -1)
-        {in \mintinline{cpp}{dynamicFvMesh::update()} \\ \mintinline{cpp}{for(auto& obj : objs)}\\ \mintinline{cpp}{{obj.updateMesh(mesh, map)}}};
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+        {in \mintinline{cpp}{dynamicFvMesh::update()} \\ \mintinline{cpp}{for(auto& obj : regObjs)}\\ \mintinline{cpp}{{obj.updateMesh(mesh, map)}}};
+    \renewcommand{\umltextcolor}{mLightBrown}
+    \renewcommand{\umldrawcolor}{mLightBrown}
     \unidirectionalAssociation{MeshObject}{\tiny register}{}{objectRegistry}
     \end{tikzpicture}%
 };
@@ -329,20 +337,20 @@
     \begin{class}[text width=4cm]{fvSolver<T>}{-3,10}
         \operation{+ solve(const dictionary\&) : SolverPerformance<T>}
     \end{class}
-    \begin{class}[text width=4cm]{lduMatrix}{-5,4}
+    \begin{class}[text width=5cm]{lduMatrix}{-4,4}
         \attribute{\# preconditioner : lduMatrix::preconditioner}
         \attribute{\# smoother : lduMatrix::smoother}
         \attribute{\# solver : lduMatrix::solver}
     \end{class}
     \begin{class}[text width=3cm]{fvMatrix<T>}{-8,6}
-        \renewcommand{\umltextcolor}{mDarkTeal}
-        \renewcommand{\umldrawcolor}{mDarkTeal}
+        \renewcommand{\umltextcolor}{mLightBrown}
+        \renewcommand{\umldrawcolor}{mLightBrown}
         \inherit{lduMatrix}
     \end{class}
     \begin{class}[text width=3cm]{fvMatrix<T>}{-8,6}
     \end{class}
-    \renewcommand{\umltextcolor}{mDarkTeal}
-    \renewcommand{\umldrawcolor}{mDarkTeal}
+    \renewcommand{\umltextcolor}{mLightBrown}
+    \renewcommand{\umldrawcolor}{mLightBrown}
     \unidirectionalAssociation{lduMatrix}{}{\tiny calls}{fvSolver<T>}
     \unidirectionalAssociation{fvSolver<T>}{}{\tiny subclass}{fvMatrix<T>}
     \end{tikzpicture}%
@@ -351,7 +359,8 @@
 
 \end{tikzpicture}
 \end{center}
-\caption{Design pattern examples from OpenFOAM}\label{fig:01}
+\vspace{0.5cm}
+\caption{Design pattern examples from OpenFOAM (simplified interfaces)}\label{fig:01}
 \end{figure}
 
 \end{frame}

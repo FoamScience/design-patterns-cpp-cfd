@@ -38,7 +38,7 @@ gdb ./tests/exampleTests/testDriver
     # See what's available through:
     (gdb) ptype 'Foam::Function1Types::CSV<double>::'
     # Here is the metaprogramming part:
-    (gdb) ptype 'Foam::Function1<double>::adddictionaryConstructorToTable<*>::'
+    (gdb) ptype 'Foam::Function1<double>::adddictionaryConstructorToTable<.....>::'
 \end{CodeEnvNoComment}
 \end{frame}
 
@@ -47,11 +47,14 @@ gdb ./tests/exampleTests/testDriver
 Discoveries:
 
 \begin{itemize}
-    \item {\bf Base class} keeps a {\bf static pointer} for a {\tt HashTable}
+    \item A {\bf Base class} keeps a {\bf static pointer} for a {\tt HashTable}
         of {\bf function pointers} to ctors of 'derived' classes.
         \begin{enumerate}
             \item {\bf static} so it gets initialized before main, after dynamic library loading.
             \item {\bf pointer} because order of initialization of global variables is {\bf not guaranteed}.
+            \begin{itemize}
+                \item [-] Avoiding Static Initialization Order Fiasco
+            \end{itemize}
             \item Technically; ctors don't have addresses, so cannot have function pointers to them.\\
                 Instead we store pointers to little helper construction functions.
         \end{enumerate}
@@ -61,7 +64,7 @@ Discoveries:
             \item Flexible enough to have multiple ways to construct objects (from dictionary, from Istream, etc)
         \end{enumerate}
     \pagebreak
-    \item Instatiation of {\tt Base::add\*ConstructorToTable<Derived>} will cause Derived's ctor to be added to the table.
+    \item Instatiation of \mintinline{cpp}{Base::add*ConstructorToTable<Derived>} will cause Derived's ctor to be added to the table.
         \begin{enumerate}
             \item Which is an effect of how template subclasses work.
             \item and with some macros, the boilerplate code is burried.
@@ -86,7 +89,7 @@ Discoveries:
         Flat-out bad design, but it's too late to refactor.\\
     \item<2>[Solution\hspace{2cm}] \hspace{\linewidth}
         Promise to write class ctors with {\bf nothing more than (a config + a mesh)} as arguments.\\ 
-        Have an Object Registry with 1 rule: Only takes global object in.\\
+        Have an Object Registry with 1 rule: Only takes global objects in.\\
 \end{description}
 
 \end{frame}
@@ -190,5 +193,45 @@ template<class... Types> bool Foam::smartRedisClient::checkFieldsExist (
     return true;
 }
 \end{CodeEnvNoComment}
+
+\end{frame}
+
+\begin{frame}[allowframebreaks,fragile]{Design patterns for common mechanisms - objectRegistry}
+
+{\bf Object registration in OpenFOAM:}
+
+\begin{itemize}
+    \item The base entity is {\tt IOobject}
+\begin{CodeEnvNoComment}[]{cpp}{\scriptsize}
+volVectorField U (
+    IOobject (
+        "U",
+        runTime.timeName(),
+        mesh, // <--- the object registry
+        IOobject::MUST_READ,
+        IOobject::AUTO_WRITE,
+        true, // Register or not? for duplicates
+        false, // same object for MPI ranks?
+        // last arg is for file IO + decompositions
+        // not to confuse with "globally scoped object"
+    ),
+    mesh
+);
+\end{CodeEnvNoComment}
+    \item {\tt regIOobject} holds registration state 
+    \item {\tt objectRegistry} holds pointers to registered objects
+        \begin{itemize}
+            \item and can register itself to other regestries, creating hierarchies of objects
+        \end{itemize}
+    \item[->] The registration system is tightly coupled to IO, which can get in the way of testing
+    \item[->] Locally-scoped objects can be registered, too, but use with caution
+\end{itemize}
+
+\begin{itemize}
+    \item[->] The mechanism is also widely used in unit-testing frameworks
+    \item[->] \href{https://github.com/catchorg/Catch2/blob/53ddf37af4488cac7724761858ae3cca9d2d65e7/src/catch2/interfaces/catch\_interfaces\_registry\_hub.hpp\#L34}{Catch2's RegistryHub}
+        is a nice short example of combining registry and facade patterns following
+        object orientation where composition is focused.
+\end{itemize}
 
 \end{frame}

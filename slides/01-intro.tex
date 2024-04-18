@@ -1,12 +1,12 @@
-\begin{frame}[fragile]{30mins Journey through C++ Programming Paradigms}
+\begin{frame}[fragile]{30mins Journey through C++ Programming Paradigms for CFD}
 
-    \begin{itemize}
+    \begin{enumerate}
         \item Programming paradigms for CFD/C++ developers
         \item Principles for better software design
         \item Most common design pattern in Open Source C++ CFD software
         \item Applications: Design patterns for common mechanisms
         \item Closing remarks
-    \end{itemize}
+    \end{enumerate}
 
 \end{frame}
 
@@ -54,7 +54,7 @@ const int xPlusOne = inc(x);
         programming and Database Systems (SQL ... etc)
 \begin{CodeEnvNoComment}[C++ ranges but it's c++23]{cpp}{\scriptsize}
 // Symptoms: Queries, rules and facts
-// Transform is a view rule, lazy evaluated! but do we care?
+// Transform is a view rule, lazily evaluated! but do we care?
 // as long as it does what it's supposed to
 auto inc = [](int x) { return x + 1; };
 vector<int> v = {1, 2, 3};
